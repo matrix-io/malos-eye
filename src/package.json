@@ -1,0 +1,9 @@
+{
+  "name": "Malos-eye-examples",
+  "description": "JS code to test MALOS-eye (Matrix abstraction layer for OS. Vision component.)",
+  "version": "0.0.1",
+  "devDependencies": {
+    "protobufjs": "*",
+    "zmq": "*"
+  }
+}
