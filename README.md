@@ -21,6 +21,14 @@ n 6.5
 ```
 ### Getting Started with the Examples
 ```
+# Clone repository.
+git clone https://github.com/matrix-io/malos-eye.git
+
+# Fetch protocol-buffers repository.
+git submodule init
+git submodule update
+
+# Setup examples.
 cd examples;
 npm install;
 ```
@@ -36,10 +44,3 @@ Everloop + Gesture demo. Control the Everloop LEDs with your hand.
 ```
 node gesture_plus_everloop.js
 ```
-
-
-Before running the demos you need to run:
-
-    # Fetch protocol-buffers repository.
-    git submodule init
-    git submodule update
