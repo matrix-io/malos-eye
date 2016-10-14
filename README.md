@@ -7,4 +7,5 @@
 Before running the demos you need to run:
 
     # Fetch protocol-buffers repository.
+    git submodule init
     git submodule update
