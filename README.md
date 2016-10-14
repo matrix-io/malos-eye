@@ -36,7 +36,7 @@ npm install
 ### Face Detection with Demographics
 Demographics example. Detect faces and get age, gender, emotion and pose by querying a remote server.
 ```
-query_demographics.js
+node query_demographics.js
 ```
 
 ### Gesture Detection
