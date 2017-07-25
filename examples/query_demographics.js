@@ -9,6 +9,7 @@
 // For each demographics (age for instance) more information will
 // be printed but only the information for a given tag will make sense.
 // You can check the FacialRecognition message for details:
+// TODO: Update proto path.
 // https://github.com/matrix-io/protocol-buffers/blob/master/vision/vision.proto
 
 // This is how we connect to the creator. IP and port.
@@ -22,28 +23,19 @@
 // BasePort + 2 => Error port. Receive errros from device.
 // BasePort + 3 => Data port. Receive data from device.
 
-var creator_ip = '127.0.0.1'
-var creator_demographics_base_port = 22013
+var creator_ip = process.env.CREATOR_IP || '127.0.0.1';
+var creator_demographics_base_port = 22013;
 
-var protoBuf = require("protobufjs")
-
-
-// Parse proto file
-var protoBuilder = protoBuf.loadProtoFile('../protocol-buffers/malos/driver.proto')
-// Parse matrix_malos package (namespace).
-var matrixMalosBuilder = protoBuilder.build("matrix_malos")
-
-var protoBuilderVision = protoBuf.loadProtoFile('../protocol-buffers/vision/vision.proto')
-var matrixVisionBuilder = protoBuilderVision.build('admobilize_vision')
-
-var zmq = require('zmq')
+var zmq = require('zmq');
+var matrix_io = require('matrix-protos').matrix_io;
 
 // ********** Start error management.
 var errorSocket = zmq.socket('sub')
-errorSocket.connect('tcp://' + creator_ip + ':' + (creator_demographics_base_port + 2))
+errorSocket.connect('tcp://' + creator_ip + ':' +
+                    (creator_demographics_base_port + 2))
 errorSocket.subscribe('')
 errorSocket.on('message', function(error_message) {
-  process.stdout.write('Message received: demographics error: ' + error_message.toString('utf8') + "\n")
+  process.stdout.write('Demographics error: ' + error_message.toString('utf8'))
 });
 // ********** End error management.
 
@@ -51,12 +43,31 @@ errorSocket.on('message', function(error_message) {
 // ********** Start configuration.
 
 var malosEyeConfigSocket = zmq.socket('push')
-malosEyeConfigSocket.connect('tcp://' + creator_ip + ':' + creator_demographics_base_port /* config */)
+malosEyeConfigSocket.connect('tcp://' + creator_ip + ':' +
+                             creator_demographics_base_port /* config */)
 
 function ConfigureVideoCapture() {
   console.log('configuring video capture')
-  malosEyeConfigSocket.connect('tcp://' + creator_ip + ':' + creator_demographics_base_port /* config */)
 
+  camera = matrix_io.malos.v1.maloseye.CameraConfig.create({
+    camera_id: 0,
+    width: 640,
+    height: 480
+  });
+
+  var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+    camera_config: camera
+  });
+
+  var config = matrix_io.malos.v1.driver.DriverConfig.create({
+    delay_between_updates: 0.05,
+    malos_eye_config: eye_config
+  });
+
+  malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
+
+/*
+  Maciek: The way it was before:
   var config = new matrixMalosBuilder.DriverConfig
   // Generic configuration.
   // Almost 0 delay between updates. 50ms.
@@ -70,9 +81,22 @@ function ConfigureVideoCapture() {
   camera_config.set_height(480);
   config.malos_eye_config.set_camera_config(camera_config)
   malosEyeConfigSocket.send(config.encode().toBuffer())
+  */
 }
 
 ConfigureVideoCapture()
+
+/*
+
+var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+              object_to_detect: [matrix_io.malos.v1.maloseye.EnumMalosEyeDetectionType.FACE_DEMOGRAPHICS]
+            });
+var config = matrix_io.malos.v1.driver.DriverConfig.create({
+               malos_eye_config : eye_config
+            });
+malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
+
+
 
 function SetObjectsToDetect(objs) {
   console.log('updating objects to detect')
@@ -111,3 +135,5 @@ setInterval(function(){
   pingSocket.send('');
 }, 3000);
 // ********** Ping the driver ends
+
+*/

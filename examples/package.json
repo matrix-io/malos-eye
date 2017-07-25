@@ -1,9 +1,12 @@
 {
   "name": "Malos-eye-examples",
   "description": "JS code to test MALOS-eye (Matrix abstraction layer for OS. Vision component.)",
+  "repository": "https://github.com/matrix-io/malos-eye",
   "version": "0.0.1",
-  "devDependencies": {
-    "protobufjs": "5.0.1",
-    "zmq": "*"
+  "license": "GPL-3.0",
+  "devDependencies": {},
+  "dependencies": {
+    "matrix-protos": "^0.0.13",
+    "zmq": "^2.15.3"
   }
 }
