@@ -50,81 +50,85 @@ function ConfigureVideoCapture() {
   console.log('configuring video capture')
 
   camera = matrix_io.malos.v1.maloseye.CameraConfig.create({
-    camera_id: 0,
+    cameraId: 0,
     width: 640,
     height: 480
   });
 
   var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
-    camera_config: camera
+    cameraConfig: camera
   });
 
   var config = matrix_io.malos.v1.driver.DriverConfig.create({
-    delay_between_updates: 0.05,
-    malos_eye_config: eye_config
+    delayBetweenUpdates: 0.05,
+    malosEyeConfig: eye_config
   });
 
   malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
-
-/*
-  Maciek: The way it was before:
-  var config = new matrixMalosBuilder.DriverConfig
-  // Generic configuration.
-  // Almost 0 delay between updates. 50ms.
-  config.set_delay_between_updates(0.05)
-  // Driver specific configuration.
-  config.malos_eye_config = new matrixMalosBuilder.MalosEyeConfig
-  // Camera configuration.
-  camera_config = new matrixMalosBuilder.CameraConfig
-  camera_config.set_camera_id(0);
-  camera_config.set_width(640);
-  camera_config.set_height(480);
-  config.malos_eye_config.set_camera_config(camera_config)
-  malosEyeConfigSocket.send(config.encode().toBuffer())
-  */
 }
 
 ConfigureVideoCapture()
 
-/*
 
-var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
-              object_to_detect: [matrix_io.malos.v1.maloseye.EnumMalosEyeDetectionType.FACE_DEMOGRAPHICS]
+function ConfigureObjectsToDetect() {
+  var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+              objectToDetect: [matrix_io.malos.v1.maloseye.EnumMalosEyeDetectionType.FACE_DEMOGRAPHICS]
             });
-var config = matrix_io.malos.v1.driver.DriverConfig.create({
-               malos_eye_config : eye_config
+  var config = matrix_io.malos.v1.driver.DriverConfig.create({
+               malosEyeConfig : eye_config
             });
-malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
-
-
-
-function SetObjectsToDetect(objs) {
-  console.log('updating objects to detect')
-  var config = new matrixMalosBuilder.DriverConfig
-  config.malos_eye_config = new matrixMalosBuilder.MalosEyeConfig
-  for(var i = 0; i < objs.length; ++i) {
-    config.malos_eye_config.object_to_detect.push(objs[i])
-  }
-  malosEyeConfigSocket.send(config.encode().toBuffer())
+  malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
 }
 
-SetObjectsToDetect([matrixMalosBuilder.EnumMalosEyeDetectionType.FACE_DEMOGRAPHICS])
+ConfigureObjectsToDetect()
 
 // ********** End configuration.
+
+function roundpose(val) {
+  return Math.round(val * 1000) / 1000;
+}
 
 // ********** Start updates - Here is where they are received.
 var updateSocket = zmq.socket('sub')
 updateSocket.connect('tcp://' + creator_ip + ':' + (creator_demographics_base_port + 3))
 updateSocket.subscribe('')
 updateSocket.on('message', function(buffer) {
-    // .toRaw() gets you decoded values! Try what happens without it.
-    var data = new matrixVisionBuilder.VisionResult.decode(buffer).toRaw()
-    console.log(data)
-    for (var i = 0; i < data.rect_detection.length; ++i) {
-        console.log(data.rect_detection[i].facial_recognition)
+    var data = new matrix_io.vision.v1.VisionResult.decode(buffer)
+    for (var i = 0; i < data.rectDetection.length; ++i) {
+        console.log(' *** Detection ' + i + ' ***');
+        var detection = data.rectDetection[i];
+        console.log('Location: ', detection.location);
+        for (var j = 0; i < detection.facialRecognition.length; ++i) {
+          var rec = detection.facialRecognition[i];
+          if (rec.tag == 0) {
+            console.log('Age: ', rec.age);
+          } else if (rec.tag == 1) {
+            // TODO: Is there a way to do this conversion with protobufjs 6.X?
+            let emotion = 'unknown';
+            switch(rec.emotion) {
+              case 0: emotion = 'Angry'; break;
+              case 1: emotion = 'Disgust'; break;
+              case 2: emotion = 'Confused'; break;
+              case 3: emotion = 'Happy'; break;
+              case 4: emotion = 'Sad'; break;
+              case 5: emotion = 'Surprised'; break;
+              case 6: emotion = 'Calm'; break;
+            }
+            console.log('Emotion:', emotion)
+          } else if (rec.tag == 4) {
+            console.log('Pose (radians). Yaw: ', roundpose(rec.poseYaw), 'Pitch:', roundpose(rec.posePitch),
+                               'Roll:', roundpose(rec.poseRoll));
+          } else if (rec.tag == 2) {
+            console.log('Gender:', rec.gender == 0 ? 'Male' : 'Female');
+          } else {
+            console.log(rec)
+          }
+        }
     }
+    console.log()
 });
 // ********** End updates
+
 
 // ********** Ping the driver
 var pingSocket = zmq.socket('push')
@@ -135,5 +139,3 @@ setInterval(function(){
   pingSocket.send('');
 }, 3000);
 // ********** Ping the driver ends
-
-*/
