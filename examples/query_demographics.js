@@ -1,3 +1,5 @@
+"use strict";
+
 // This demo will configure MALOS-eye to detect faces.
 // The program malos_eye needs to be running. You can install it with
 // apt-get install malos-eye .
@@ -9,12 +11,13 @@
 // For each demographics (age for instance) more information will
 // be printed but only the information for a given tag will make sense.
 // You can check the FacialRecognition message for details:
-// TODO: Update proto path.
+// TODO: Update proto path once the merge is done.
 // https://github.com/matrix-io/protocol-buffers/blob/master/vision/vision.proto
 
-// This is how we connect to the creator. IP and port.
-// The IP is the IP I'm using and you need to edit it.
-// By default, MALOS has its 0MQ ports open to the world.
+// This is how we connect to the creator.
+// You can set the IP of the creator with the env var CREATOR_IP.
+// It defaults to 127.0.0.1.
+// By default, MALOS-eye (in the Creator) has its 0MQ ports open to the world.
 
 // Every device is identified by a base port. Then the mapping works
 // as follows:
@@ -23,11 +26,11 @@
 // BasePort + 2 => Error port. Receive errros from device.
 // BasePort + 3 => Data port. Receive data from device.
 
-var creator_ip = process.env.CREATOR_IP || '127.0.0.1';
-var creator_demographics_base_port = 22013;
+const creator_ip = process.env.CREATOR_IP || '127.0.0.1';
+const creator_demographics_base_port = 22013;
 
-var zmq = require('zmq');
-var matrix_io = require('matrix-protos').matrix_io;
+const zmq = require('zmq');
+const matrix_io = require('matrix-protos').matrix_io;
 
 // ********** Start error management.
 var errorSocket = zmq.socket('sub')
@@ -49,17 +52,17 @@ malosEyeConfigSocket.connect('tcp://' + creator_ip + ':' +
 function ConfigureVideoCapture() {
   console.log('configuring video capture')
 
-  camera = matrix_io.malos.v1.maloseye.CameraConfig.create({
+  let camera = matrix_io.malos.v1.maloseye.CameraConfig.create({
     cameraId: 0,
     width: 640,
     height: 480
   });
 
-  var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+  let eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
     cameraConfig: camera
   });
 
-  var config = matrix_io.malos.v1.driver.DriverConfig.create({
+  let config = matrix_io.malos.v1.driver.DriverConfig.create({
     delayBetweenUpdates: 0.05,
     malosEyeConfig: eye_config
   });
@@ -71,10 +74,10 @@ ConfigureVideoCapture()
 
 
 function ConfigureObjectsToDetect() {
-  var eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+  let eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
               objectToDetect: [matrix_io.malos.v1.maloseye.EnumMalosEyeDetectionType.FACE_DEMOGRAPHICS]
             });
-  var config = matrix_io.malos.v1.driver.DriverConfig.create({
+  let  config = matrix_io.malos.v1.driver.DriverConfig.create({
                malosEyeConfig : eye_config
             });
   malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish())
@@ -93,13 +96,13 @@ var updateSocket = zmq.socket('sub')
 updateSocket.connect('tcp://' + creator_ip + ':' + (creator_demographics_base_port + 3))
 updateSocket.subscribe('')
 updateSocket.on('message', function(buffer) {
-    var data = new matrix_io.vision.v1.VisionResult.decode(buffer)
-    for (var i = 0; i < data.rectDetection.length; ++i) {
+    let data = new matrix_io.vision.v1.VisionResult.decode(buffer)
+    for (let i = 0; i < data.rectDetection.length; ++i) {
         console.log(' *** Detection ' + i + ' ***');
-        var detection = data.rectDetection[i];
+        let detection = data.rectDetection[i];
         console.log('Location: ', detection.location);
-        for (var j = 0; i < detection.facialRecognition.length; ++i) {
-          var rec = detection.facialRecognition[i];
+        for (let j = 0; i < detection.facialRecognition.length; ++i) {
+          let rec = detection.facialRecognition[i];
           if (rec.tag == 0) {
             console.log('Age: ', rec.age);
           } else if (rec.tag == 1) {
