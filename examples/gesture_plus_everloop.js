@@ -114,7 +114,7 @@ var updateSocket = zmq.socket('sub');
 updateSocket.subscribe('');
 updateSocket.connect('tcp://' + creator_ip + ':' + (creator_gesture_base_port + 3));
 updateSocket.subscribe('');
-updateSocket.on('message', function(buffer) {
+updateSocket.on('message', (buffer) => {
     let data = new matrix_io.vision.v1.VisionResult.decode(buffer);
     for (let i = 0; i < data.rectDetection.length; ++i) {
       const detection = data.rectDetection[i]
