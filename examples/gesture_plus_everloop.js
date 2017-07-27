@@ -1,3 +1,5 @@
+"use strict";
+
 // This demo integrates the Everloop LED array and the camera
 // (with gesture detection). In order to run it you need to have
 // both matrix-creator-malos and malos-eye installed.
@@ -5,140 +7,139 @@
 // apt-get install matrix-creator-malos malos-eye
 //
 // When the demo runs it will wait for a face detection. Once a face
-// is detected it will no longer expect faces and expect fists and palms
-// instead. With a hand palm you can change the colors of the everloop LED array.
-// With a fist you can make the leds blink.
+// is detected you can control the intensity of the red leds by
+// moving left and right and the intensity of the blue led by going up and down.
+// If malos_eye stops detecting a face then the leds will turn off.
 
 // This is how we connect to the creator. IP and port.
 // The IP is the IP I'm using and you need to edit it.
 // By default, MALOS has its 0MQ ports open to the world.
-
-// Every device is identified by a base port. Then the mapping works
+// Every service is identified by a base port. Then the mapping works
 // as follows:
 // BasePort     => Configuration port. Used to config the device.
 // BasePort + 1 => Keepalive port. Send pings to this port.
 // BasePort + 2 => Error port. Receive errros from device.
 // BasePort + 3 => Data port. Receive data from device.
 
-var creator_ip = '127.0.0.1'
-var creator_gesture_base_port = 22013
+// Use: CREATOR_IP="192.168.2.2" node gesture_plus_everloop.js
+// to override the default ip address. 
+const creator_ip = process.env.CREATOR_IP || '127.0.0.1';
 
-var protoBuf = require("protobufjs")
+// The following two lines are for the ports used by matrix-creator-malos.
+// The program that can control the leds.
+const creator_gesture_base_port = 22013;
+const creator_everloop_base_port = 20013 + 8;
 
-// Parse proto file
-var protoBuilder = protoBuf.loadProtoFile('../protocol-buffers/malos/driver.proto')
-// Parse matrix_malos package (namespace).
-var matrixMalosBuilder = protoBuilder.build("matrix_malos")
-
-var protoBuilderVision = protoBuf.loadProtoFile('../protocol-buffers/vision/vision.proto')
-var matrixVisionBuilder = protoBuilderVision.build('admobilize_vision')
-
-var zmq = require('zmq')
+// ZeroMQ protocol is used to send messages to Malos.
+var zmq = require('zmq');
+// The protocol buffers used by the matrix_io project.
+const matrix_io = require('matrix-protos').matrix_io;
 
 // ********** Start error management.
-var errorSocket = zmq.socket('sub')
-errorSocket.connect('tcp://' + creator_ip + ':' + (creator_gesture_base_port + 2))
+var errorSocket = zmq.socket('sub');
+errorSocket.connect('tcp://' + creator_ip + ':' +
+                    (creator_gesture_base_port + 2));
 errorSocket.subscribe('')
 errorSocket.on('message', function(error_message) {
-  process.stdout.write('Message received: gesture error: ' + error_message.toString('utf8') + "\n")
+  process.stdout.write('Demographics error: ' + error_message.toString('utf8'));
 });
 // ********** End error management.
 
 
-var MalosEyeConfigSocket = zmq.socket('push')
+var malosEyeConfigSocket = zmq.socket('push');
+malosEyeConfigSocket.connect('tcp://' + creator_ip + ':' +
+                             creator_gesture_base_port);
+const camWidth = 640
+const camHeight = 480
 
+// Start configuration. Initialize the camera and the parameters for
+// malos-eye.
 function ConfigureVideoCapture() {
-  console.log('configuring video capture')
-  MalosEyeConfigSocket.connect('tcp://' + creator_ip + ':' + creator_gesture_base_port /* config */)
+  console.log('configuring video capture');
 
-  var config = new matrixMalosBuilder.DriverConfig
-  // Generic configuration.
-  // Almost 0 delay between updates. 50ms.
-  config.set_delay_between_updates(0.005)
-  // Driver specific configuration.
-  config.malos_eye_config = new matrixMalosBuilder.MalosEyeConfig
-  // Camera configuration.
-  camera_config = new matrixMalosBuilder.CameraConfig
-  camera_config.set_camera_id(0);
-  camera_config.set_width(640);
-  camera_config.set_height(480);
-  config.malos_eye_config.set_camera_config(camera_config)
-  MalosEyeConfigSocket.send(config.encode().toBuffer())
+  let camera = matrix_io.malos.v1.maloseye.CameraConfig.create({
+    cameraId: 0,
+    width: camWidth,
+    height: camHeight,
+  });
+
+  let eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+    cameraConfig: camera,
+  });
+
+  let config = matrix_io.malos.v1.driver.DriverConfig.create({
+    delayBetweenUpdates: 0.05,
+    malosEyeConfig: eye_config,
+  });
+
+  malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish());
 }
 
-ConfigureVideoCapture()
+ConfigureVideoCapture();
+// End configuration
 
-function SetObjectsToDetect(objs) {
-  console.log('updating objects to detect')
-  var config = new matrixMalosBuilder.DriverConfig
-  config.malos_eye_config = new matrixMalosBuilder.MalosEyeConfig
-  for(var i = 0; i < objs.length; ++i) {
-    config.malos_eye_config.object_to_detect.push(objs[i])
-  }
-  MalosEyeConfigSocket.send(config.encode().toBuffer())
+// Configure malos-eye t do face detections.
+function ConfigureObjectsToDetect() {
+  let eye_config = matrix_io.malos.v1.maloseye.MalosEyeConfig.create({
+              objectToDetect: [matrix_io.malos.v1.maloseye.EnumMalosEyeDetectionType.FACE]
+            });
+  let  config = matrix_io.malos.v1.driver.DriverConfig.create({
+               malosEyeConfig : eye_config
+            });
+  malosEyeConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish());
 }
+ConfigureObjectsToDetect();
+// End configure face detection
 
-SetObjectsToDetect([matrixMalosBuilder.EnumMalosEyeDetectionType.FACE])
-console.log('waiting for a face')
+console.log('Waiting for a face to show.')
+console.log('Move left and right to change the color of the red LED.')
+console.log('Move up and down to change the color of the blue LED.')
 
-
-var creator_everloop_base_port = 20013 + 8 // port for Everloop driver
-var everloopConfigSocket = zmq.socket('push')
-everloopConfigSocket.connect('tcp://' + creator_ip + ':' + creator_everloop_base_port /* config */)
-
-function setEverloop(r, g, b, w) {
-    var config = new matrixMalosBuilder.DriverConfig
-    config.image = new matrixMalosBuilder.EverloopImage
-    for (var j = 0; j < 35; ++j) {
-      var ledValue = new matrixMalosBuilder.LedValue;
-      ledValue.setRed(r);
-      ledValue.setGreen(g);
-      ledValue.setBlue(b);
-      ledValue.setWhite(w);
-      config.image.led.push(ledValue)
+var everloopConfigSocket = zmq.socket('push');
+everloopConfigSocket.connect('tcp://' + creator_ip + ':' + creator_everloop_base_port /* config */);
+function setEverloop(led_values) {
+    let image = matrix_io.malos.v1.io.EverloopImage.create()
+    for (let j = 0; j < 35; ++j) {
+      let led_conf = matrix_io.malos.v1.io.LedValue.create(led_values);
+      image.led.push(led_conf);
     }
-    everloopConfigSocket.send(config.encode().toBuffer());
+    let config = matrix_io.malos.v1.driver.DriverConfig.create({
+      image: image,
+    });
+    everloopConfigSocket.send(matrix_io.malos.v1.driver.DriverConfig.encode(config).finish());
 }
 
-setEverloop(0, 0, 0, 2);
-
-WAIT_FACE = 0
-WAIT_FIST_OR_HAND = 1
-
-var demo_state = WAIT_FACE
-var fist_sate = 0 // 0 or 1 meaning 'on' and 'off'.
-
-// ********** Start updates - Here is where they are received.
-var updateSocket = zmq.socket('sub')
-updateSocket.connect('tcp://' + creator_ip + ':' + (creator_gesture_base_port + 3))
-updateSocket.subscribe('')
+// ********** Start updates - Here is where they are received and they come from malos-eye.
+var updateSocket = zmq.socket('sub');
+updateSocket.subscribe('');
+updateSocket.connect('tcp://' + creator_ip + ':' + (creator_gesture_base_port + 3));
+updateSocket.subscribe('');
 updateSocket.on('message', function(buffer) {
-    // .toRaw() gets you decoded values! Try what happens without it.
-    var data = new matrixVisionBuilder.VisionResult.decode(buffer).toRaw()
-
-    if (demo_state == WAIT_FACE) {
-        console.log('Face detected')
-        setEverloop(0, 10, 0, 0)
-        SetObjectsToDetect([matrixMalosBuilder.EnumMalosEyeDetectionType.HAND_FIST,
-                            matrixMalosBuilder.EnumMalosEyeDetectionType.HAND_PALM])
-        console.log('Waiting for palm or fist')
-        demo_state = WAIT_FIST_OR_HAND
-    } else if (demo_state == WAIT_FIST_OR_HAND) {
-      if (data['rect_detection'][0]['tag'] == 'HAND_PALM') {
-        console.log('Palm detected')
-        where = data['rect_detection'][0]['location']
-        console.log(where['x'], where['y'])
-        setEverloop(Math.round(where['x'] / 5), 0, Math.round(where['y'] / 5), 0)
-      } else if (data['rect_detection'][0]['tag'] == 'HAND_FIST') {
-        console.log('Fist detected')
-        setEverloop(0, 10 * fist_sate, 0, 0)
-        fist_sate = 1 - fist_sate
+    let data = new matrix_io.vision.v1.VisionResult.decode(buffer);
+    for (let i = 0; i < data.rectDetection.length; ++i) {
+      const detection = data.rectDetection[i]
+      // i == 0 means that we only take into account the first person that was detected.
+      if (i == 0) {
+        let redIntensity = Math.round(((camWidth - detection.location.x) / camWidth) * 80);
+        let blueIntensity = Math.round((detection.location.y / camHeight) * 80);
+        setEverloop({
+          red: redIntensity,
+          green: 0,
+          blue: blueIntensity,
+          white: 0
+        });
       }
     }
+    if (data.rectDetection.length == 0) {
+      setEverloop({});
+    }
+    //console.log(data)
 });
 // ********** End updates
 
-// ********** Ping the driver
+
+// ********** Ping the driver. We need to do this to tell malos-eye that we are still waiting for
+// updates.
 var pingSocket = zmq.socket('push')
 pingSocket.connect('tcp://' + creator_ip + ':' + (creator_gesture_base_port + 1))
 process.stdout.write("Sending pings every 3 seconds")
