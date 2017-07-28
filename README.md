@@ -19,11 +19,7 @@ sudo apt-get install nodejs
 # Clone repository.
 git clone https://github.com/matrix-io/malos-eye.git
 
-# Fetch protocol-buffers repository.
-git submodule init
-git submodule update
-
-# Setup examples.
+# Get into the right directory and install modules.
 cd examples
 npm install
 ```
