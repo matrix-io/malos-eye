@@ -38,7 +38,7 @@ errorSocket.connect('tcp://' + creator_ip + ':' +
                     (creator_demographics_base_port + 2))
 errorSocket.subscribe('')
 errorSocket.on('message', function(error_message) {
-  process.stdout.write('Demographics error: ' + error_message.toString('utf8'))
+  console.log('Demographics error: ', error_message.toString('utf8'))
 });
 // ********** End error management.
 
@@ -136,7 +136,7 @@ updateSocket.on('message', function(buffer) {
 // ********** Ping the driver
 var pingSocket = zmq.socket('push')
 pingSocket.connect('tcp://' + creator_ip + ':' + (creator_demographics_base_port + 1))
-process.stdout.write("Sending pings every 3 seconds");
+console.log("Sending pings every 3 seconds");
 pingSocket.send(''); // Ping the first time.
 setInterval(function(){
   pingSocket.send('');
