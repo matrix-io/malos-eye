@@ -63,7 +63,7 @@ function ConfigureVideoCapture() {
   });
 
   let config = matrix_io.malos.v1.driver.DriverConfig.create({
-    delayBetweenUpdates: 0.05,
+    delayBetweenUpdates: 0.00000005,
     malosEyeConfig: eye_config
   });
 
@@ -101,8 +101,8 @@ updateSocket.on('message', function(buffer) {
         console.log(' *** Detection ' + i + ' ***');
         let detection = data.rectDetection[i];
         console.log('Location: ', detection.location);
-        for (let j = 0; i < detection.facialRecognition.length; ++i) {
-          let rec = detection.facialRecognition[i];
+        for (let j = 0; j < detection.facialRecognition.length; ++j) {
+          let rec = detection.facialRecognition[j];
           if (rec.tag == 0) {
             console.log('Age: ', rec.age);
           } else if (rec.tag == 1) {
