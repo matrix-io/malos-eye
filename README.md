@@ -8,14 +8,9 @@ sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get install libzmq3-dev xc3sprog malos-eye matrix-creator-malos matrix-creator-openocd wiringpi matrix-creator-init cmake g++ git
 
-# Install npm (doesn't really matter what version, apt-get node is v0.10...)
-sudo apt-get install npm nodejs
-
-# n is a node version manager
-sudo npm install -g n
-
-# node 6.5 is the latest target node version, also installs new npm
-n 6.5
+# Install Node.js.
+curl -sL https://deb.nodesource.com/setup_6.x | sudo bash -
+sudo apt-get install nodejs
 
 
 ```
@@ -24,11 +19,7 @@ n 6.5
 # Clone repository.
 git clone https://github.com/matrix-io/malos-eye.git
 
-# Fetch protocol-buffers repository.
-git submodule init
-git submodule update
-
-# Setup examples.
+# Get into the right directory and install modules.
 cd examples
 npm install
 ```
@@ -40,7 +31,7 @@ node query_demographics.js
 ```
 
 ### Gesture Detection
-Everloop + Gesture demo. Control the Everloop LEDs with your hand.
+Everloop + Gesture demo. Control the Everloop LEDs with your face.
 ```
 node gesture_plus_everloop.js
 ```
