@@ -63,7 +63,7 @@ function ConfigureVideoCapture() {
   });
 
   let config = matrix_io.malos.v1.driver.DriverConfig.create({
-    delayBetweenUpdates: 0.00000005,
+    delayBetweenUpdates: 0.00000000000005,
     malosEyeConfig: eye_config
   });
 
